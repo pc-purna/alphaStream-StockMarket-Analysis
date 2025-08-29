@@ -1,5 +1,51 @@
 import React, { useState, useEffect } from 'react';
 
+// --- Gemini API Call Function ---
+// This is a simplified and robust function to call the Gemini API
+// It includes exponential backoff for retries on failure.
+async function callGeminiAPI(prompt) {
+    const apiKey = ""; // Leave as an empty string
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+    
+    const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+    };
+
+    let response;
+    let retries = 3;
+    let delay = 1000;
+
+    for (let i = 0; i < retries; i++) {
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content?.parts?.[0]?.text) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error("Invalid response structure from Gemini API");
+                }
+            } else {
+                 throw new Error(`API request failed with status ${response.status}`);
+            }
+        } catch (error) {
+            console.error(`Attempt ${i + 1} failed:`, error);
+            if (i < retries - 1) {
+                await new Promise(res => setTimeout(res, delay));
+                delay *= 2; // Exponential backoff
+            } else {
+                return "Sorry, the AI analysis is currently unavailable. Please try again later.";
+            }
+        }
+    }
+}
+
+
 // --- Helper Data ---
 const mockStockData = [
     { 
@@ -78,6 +124,13 @@ const Card = ({ children, className = '' }) => (
         {children}
     </div>
 );
+
+const CartoonCard = ({ children, className = '' }) => (
+    <div className={`bg-white border-4 border-black rounded-2xl shadow-[8px_8px_0_0_#000] transition-transform hover:scale-[1.02] ${className}`}>
+        {children}
+    </div>
+);
+
 
 // --- Main Components ---
 
@@ -208,46 +261,68 @@ const HourlyStocks = () => {
     );
 };
 
-const LongTermStockItem = ({ stock, isOpen, onToggle }) => (
-    <Card className="p-5">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4"><img src={`https://placehold.co/48x48/${stock.logoColor}/000000?text=${stock.ticker.substring(0,4)}`} alt={`${stock.ticker} Logo`} className="rounded-full" />
-                <div><p className="font-semibold text-lg text-white/90">{stock.ticker}</p><p className="text-sm text-gray-400">{stock.name}</p></div>
+const LongTermStockItem = ({ stock, isOpen, onToggle }) => {
+    const [explanation, setExplanation] = useState('');
+    const [isExplanationLoading, setIsExplanationLoading] = useState(false);
+
+    const handleExplain = async () => {
+        setIsExplanationLoading(true);
+        setExplanation('');
+        const prompt = `Explain what the company ${stock.name} (${stock.ticker}) does in simple terms that a 15-year-old can understand. Use an analogy if possible. Keep it to one short paragraph.`;
+        const result = await callGeminiAPI(prompt);
+        setExplanation(result);
+        setIsExplanationLoading(false);
+    };
+
+    return (
+        <Card className="p-5">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4"><img src={`https://placehold.co/48x48/${stock.logoColor}/000000?text=${stock.ticker.substring(0,4)}`} alt={`${stock.ticker} Logo`} className="rounded-full" />
+                    <div><p className="font-semibold text-lg text-white/90">{stock.ticker}</p><p className="text-sm text-gray-400">{stock.name}</p></div>
+                </div>
+                <div className="text-right"><p className="font-medium text-lg text-white/90">₹{stock.price}</p><p className={`text-sm font-semibold ${stock.isPositive ? 'text-green-400' : 'text-red-400'}`}>{stock.change}</p></div>
+                <div className="hidden sm:flex items-center space-x-8 text-center">
+                    <div><p className="text-xs font-bold text-gray-400 tracking-wider">P/E RATIO</p><p className="font-semibold text-white/90 mt-1">{stock.peRatio}</p></div>
+                    <div><p className="text-xs font-bold text-gray-400 tracking-wider">5Y RETURN</p><p className="font-semibold text-green-400 mt-1">{stock.fiveYearReturn}</p></div>
+                </div>
+                <button onClick={onToggle} className="bg-white/10 text-white font-semibold px-4 py-2 rounded-full hover:bg-white/20 transition-colors duration-300 flex items-center space-x-2">
+                    <i className={`fas fa-chevron-down details-icon ${isOpen ? 'rotated' : ''}`}></i>
+                </button>
             </div>
-            <div className="text-right"><p className="font-medium text-lg text-white/90">₹{stock.price}</p><p className={`text-sm font-semibold ${stock.isPositive ? 'text-green-400' : 'text-red-400'}`}>{stock.change}</p></div>
-            <div className="hidden sm:flex items-center space-x-8 text-center">
-                <div><p className="text-xs font-bold text-gray-400 tracking-wider">P/E RATIO</p><p className="font-semibold text-white/90 mt-1">{stock.peRatio}</p></div>
-                <div><p className="text-xs font-bold text-gray-400 tracking-wider">5Y RETURN</p><p className="font-semibold text-green-400 mt-1">{stock.fiveYearReturn}</p></div>
-            </div>
-            <button onClick={onToggle} className="bg-white/10 text-white font-semibold px-4 py-2 rounded-full hover:bg-white/20 transition-colors duration-300 flex items-center space-x-2">
-                <i className={`fas fa-chevron-down details-icon ${isOpen ? 'rotated' : ''}`}></i>
-            </button>
-        </div>
-        {isOpen && (
-            <div className="mt-5 pt-5 border-t border-white/10 text-sm">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h4 className="font-semibold text-green-400 mb-2 tracking-wide">PROS</h4>
-                        <ul className="list-disc list-inside space-y-2 text-gray-300">
-                            {stock.pros.map(pro => <li key={pro.id}>{pro.text}</li>)}
-                        </ul>
+            {isOpen && (
+                <div className="mt-5 pt-5 border-t border-white/10 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 className="font-semibold text-green-400 mb-2 tracking-wide">PROS</h4>
+                            <ul className="list-disc list-inside space-y-2 text-gray-300">
+                                {stock.pros.map(pro => <li key={pro.id}>{pro.text}</li>)}
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-red-400 mb-2 tracking-wide">CONS</h4>
+                            <ul className="list-disc list-inside space-y-2 text-gray-300">
+                                {stock.cons.map(con => <li key={con.id}>{con.text}</li>)}
+                            </ul>
+                        </div>
                     </div>
-                    <div>
-                        <h4 className="font-semibold text-red-400 mb-2 tracking-wide">CONS</h4>
-                        <ul className="list-disc list-inside space-y-2 text-gray-300">
-                            {stock.cons.map(con => <li key={con.id}>{con.text}</li>)}
-                        </ul>
+                    <div className="mt-5 pt-5 border-t border-white/10">
+                        <h4 className="font-semibold text-white/90 mb-2 tracking-wide">Investment Timing Analysis</h4>
+                        <div className={`flex items-center ${stock.timing.color}`}><i className={`${stock.timing.icon} mr-2`}></i><span className="font-semibold">{stock.timing.signal}</span></div>
+                        <p className="text-gray-400 mt-1">{stock.timing.reason}</p>
+                    </div>
+                    <div className="mt-5 pt-5 border-t border-white/10">
+                         <h4 className="font-semibold text-white/90 mb-2 tracking-wide">AI Explanation</h4>
+                         <button onClick={handleExplain} disabled={isExplanationLoading} className="bg-blue-500/20 text-blue-300 font-semibold px-4 py-2 rounded-full hover:bg-blue-500/40 transition-colors duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span>✨ Explain This Company</span>
+                         </button>
+                         {isExplanationLoading && <div className="mt-2 text-gray-400">Generating explanation...</div>}
+                         {explanation && <p className="text-gray-300 mt-3 bg-white/5 p-3 rounded-lg">{explanation}</p>}
                     </div>
                 </div>
-                <div className="mt-5 pt-5 border-t border-white/10">
-                    <h4 className="font-semibold text-white/90 mb-2 tracking-wide">Investment Timing Analysis</h4>
-                    <div className={`flex items-center ${stock.timing.color}`}><i className={`${stock.timing.icon} mr-2`}></i><span className="font-semibold">{stock.timing.signal}</span></div>
-                    <p className="text-gray-400 mt-1">{stock.timing.reason}</p>
-                </div>
-            </div>
-        )}
-    </Card>
-);
+            )}
+        </Card>
+    );
+};
 
 const LongTermStocks = () => {
     const [openStockId, setOpenStockId] = useState(null);
@@ -288,16 +363,45 @@ const Portfolio = () => (
     </section>
 );
 
-const NewsFeed = () => (
-    <section id="market-news">
-        <h2 className="text-3xl font-semibold text-white/90 tracking-tight mb-6">Market News</h2>
-        <Card className="p-6 space-y-4">
-            <div className="border-b border-white/10 pb-3"><h4 className="font-semibold text-white/90">RBI holds repo rate, projects 7.2% GDP growth for FY25</h4><p className="text-sm text-gray-400 mt-1">Economic Times &bull; 35 mins ago</p></div>
-            <div className="border-b border-white/10 pb-3"><h4 className="font-semibold text-white/90">Tech stocks rally on strong US cues; Infosys, TCS lead gains</h4><p className="text-sm text-gray-400 mt-1">Reuters &bull; 1 hour ago</p></div>
-            <div><h4 className="font-semibold text-white/90">SEBI proposes tighter regulations for derivatives trading</h4><p className="text-sm text-gray-400 mt-1">Livemint &bull; 2 hours ago</p></div>
-        </Card>
-    </section>
-);
+const NewsFeed = () => {
+    const [summary, setSummary] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const newsHeadlines = [
+        "RBI holds repo rate, projects 7.2% GDP growth for FY25",
+        "Tech stocks rally on strong US cues; Infosys, TCS lead gains",
+        "SEBI proposes tighter regulations for derivatives trading"
+    ];
+
+    const handleSummarize = async () => {
+        setIsLoading(true);
+        setSummary('');
+        const prompt = `You are a financial analyst. Summarize the following market news headlines into a single, concise paragraph for a retail investor: \n- ${newsHeadlines.join('\n- ')}`;
+        const result = await callGeminiAPI(prompt);
+        setSummary(result);
+        setIsLoading(false);
+    };
+
+    return (
+        <section id="market-news">
+            <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-3xl font-semibold text-white/90 tracking-tight">Market News</h2>
+                 <button onClick={handleSummarize} disabled={isLoading} className="bg-blue-500/20 text-blue-300 font-semibold px-4 py-2 rounded-full hover:bg-blue-500/40 transition-colors duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                     <span>✨ Summarize News</span>
+                 </button>
+            </div>
+            {isLoading && <div className="text-center text-gray-400 p-4">Generating AI summary...</div>}
+            {summary && <Card className="p-4 mb-6 bg-blue-500/10 border-blue-400/20"><p className="text-blue-200 text-sm">{summary}</p></Card>}
+            <Card className="p-6 space-y-4">
+                {newsHeadlines.map((headline, index) => (
+                     <div key={index} className={index < newsHeadlines.length - 1 ? "border-b border-white/10 pb-3" : ""}>
+                        <h4 className="font-semibold text-white/90">{headline}</h4>
+                        <p className="text-sm text-gray-400 mt-1">Source &bull; Today</p>
+                    </div>
+                ))}
+            </Card>
+        </section>
+    );
+};
 
 const Footer = () => (
     <footer className="mt-16 py-8 border-t border-white/10">
@@ -332,122 +436,99 @@ const Learn = () => {
     const [showQuizResult, setShowQuizResult] = useState(false);
 
     const riskLevels = {
-        bonds: { level: 15, color: 'bg-green-500', label: 'Very Low' },
-        mutualFunds: { level: 50, color: 'bg-yellow-500', label: 'Medium' },
-        stocks: { level: 85, color: 'bg-red-500', label: 'High' },
+        bonds: { level: 15, color: 'bg-green-400', label: 'Very Low' },
+        mutualFunds: { level: 50, color: 'bg-yellow-400', label: 'Medium' },
+        stocks: { level: 85, color: 'bg-red-400', label: 'High' },
     };
 
     const quizQuestions = [
-        {
-            id: 1,
-            question: "Which investment is like owning a tiny piece of a company?",
-            options: ["Bonds", "Stocks", "Mutual Funds"],
-            answer: "Stocks"
-        },
-        {
-            id: 2,
-            question: "What is the main advantage of a Mutual Fund?",
-            options: ["Guaranteed returns", "Diversification (spreading risk)", "It's managed by the government"],
-            answer: "Diversification (spreading risk)"
-        },
-        {
-            id: 3,
-            question: "Which investment is considered the safest because you're lending money to the government?",
-            options: ["Stocks", "Bonds", "All of the above"],
-            answer: "Bonds"
-        }
+        { id: 1, question: "Which investment is like owning a tiny piece of a company?", options: ["Bonds", "Stocks", "Mutual Funds"], answer: "Stocks" },
+        { id: 2, question: "What is the main advantage of a Mutual Fund?", options: ["Guaranteed returns", "Diversification (spreading risk)", "It's managed by the government"], answer: "Diversification (spreading risk)" },
+        { id: 3, question: "Which investment is considered the safest because you're lending money to the government?", options: ["Stocks", "Bonds", "All of the above"], answer: "Bonds" }
     ];
 
     const handleQuizChange = (questionId, answer) => {
         setQuizAnswers({ ...quizAnswers, [questionId]: answer });
     };
 
-    const calculateScore = () => {
-        return quizQuestions.reduce((score, q) => {
-            return score + (quizAnswers[q.id] === q.answer ? 1 : 0);
-        }, 0);
-    };
+    const calculateScore = () => quizQuestions.reduce((score, q) => score + (quizAnswers[q.id] === q.answer ? 1 : 0), 0);
 
     return (
-        <section id="learn-section">
-            <div className="text-center mb-12">
-                <h1 className="text-4xl font-bold text-white/90 tracking-tight">Investing for Beginners: Your Guide to Growing Money 🚀</h1>
-                <p className="text-lg text-gray-400 mt-4 max-w-3xl mx-auto">Welcome to the AlphaStream Learning Hub! We've made these concepts simple and interactive so you can start your journey with confidence.</p>
-            </div>
-
-            <h2 className="text-3xl font-semibold text-white/90 mb-6 tracking-tight">Interactive Risk Meter</h2>
-            <Card className="p-8 mb-12">
-                <div className="flex flex-col lg:flex-row items-center gap-8">
-                    <div className="w-full lg:w-1/2">
-                        <p className="text-gray-300 mb-4">Click on an investment type to see its typical risk level. Understanding risk is the first step to smart investing.</p>
-                        <div className="flex space-x-4">
-                            <button onClick={() => setActiveRisk('bonds')} className={`px-4 py-2 rounded-full transition-all duration-300 ${activeRisk === 'bonds' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-300'}`}>Bonds</button>
-                            <button onClick={() => setActiveRisk('mutualFunds')} className={`px-4 py-2 rounded-full transition-all duration-300 ${activeRisk === 'mutualFunds' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-300'}`}>Mutual Funds</button>
-                            <button onClick={() => setActiveRisk('stocks')} className={`px-4 py-2 rounded-full transition-all duration-300 ${activeRisk === 'stocks' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-300'}`}>Stocks</button>
-                        </div>
-                        <div className="mt-6">
-                            {activeRisk === 'bonds' && <p className="text-gray-400">Bonds are very safe because you are lending to a government or a large corporation that is highly likely to pay you back.</p>}
-                            {activeRisk === 'mutualFunds' && <p className="text-gray-400">Mutual funds spread your money across many investments, so the failure of one doesn't affect you as much. This diversification lowers your risk.</p>}
-                            {activeRisk === 'stocks' && <p className="text-gray-400">Stocks can offer the highest returns, but they also come with the highest risk because a single company's fortunes can change quickly.</p>}
-                        </div>
-                    </div>
-                    <div className="w-full lg:w-1/2">
-                        <div className="w-full h-8 bg-white/10 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-500 ease-out ${riskLevels[activeRisk].color}`} style={{ width: `${riskLevels[activeRisk].level}%` }}></div>
-                        </div>
-                        <div className="text-center mt-2">
-                            <span className="font-semibold text-lg" style={{ color: riskLevels[activeRisk].color.replace('bg-', '').replace('-500', '-400') }}>{riskLevels[activeRisk].label} Risk</span>
-                        </div>
-                    </div>
+        <div className="font-sans" style={{ fontFamily: "'Comic Neue', cursive" }}>
+            <style>{`@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');`}</style>
+            <section id="learn-section">
+                <div className="text-center mb-12">
+                    <h1 className="text-5xl font-bold text-black tracking-tight">Investing for Beginners! 🚀</h1>
+                    <p className="text-lg text-gray-600 mt-4 max-w-3xl mx-auto">Welcome, Future Investor! Let's learn how to make your money grow in a fun way!</p>
                 </div>
-            </Card>
 
-            <h2 className="text-3xl font-semibold text-white/90 mb-6 tracking-tight">Key Terms to Know</h2>
-            <Card className="p-8 mb-12">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                    <div className="relative group">
-                        <p className="text-blue-400 font-semibold cursor-pointer">Wealth</p>
-                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">The total value of money and assets you own.</div>
-                    </div>
-                    <div className="relative group">
-                        <p className="text-blue-400 font-semibold cursor-pointer">Diversification</p>
-                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Spreading your money across different investments to reduce risk.</div>
-                    </div>
-                    <div className="relative group">
-                        <p className="text-blue-400 font-semibold cursor-pointer">Interest</p>
-                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">The extra money you earn for lending your money (like with bonds).</div>
-                    </div>
-                    <div className="relative group">
-                        <p className="text-blue-400 font-semibold cursor-pointer">Long-Term</p>
-                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Investing for many years (5+) to allow your money to grow significantly.</div>
-                    </div>
-                </div>
-            </Card>
-
-            <h2 className="text-3xl font-semibold text-white/90 mb-6 tracking-tight">Check Your Knowledge</h2>
-            <Card className="p-8">
-                {quizQuestions.map((q, index) => (
-                    <div key={q.id} className={`py-4 ${index < quizQuestions.length - 1 ? 'border-b border-white/10' : ''}`}>
-                        <p className="font-semibold text-white/90 mb-3">{q.id}. {q.question}</p>
-                        <div className="space-y-2">
-                            {q.options.map(option => (
-                                <label key={option} className="flex items-center space-x-3 cursor-pointer">
-                                    <input type="radio" name={`question-${q.id}`} value={option} onChange={() => handleQuizChange(q.id, option)} className="form-radio h-4 w-4 text-blue-500 bg-gray-700 border-gray-600" />
-                                    <span className="text-gray-300">{option}</span>
-                                </label>
-                            ))}
+                <h2 className="text-3xl font-bold text-black mb-6 text-center">What's the Risk? 🤔</h2>
+                <CartoonCard className="p-8 mb-12">
+                     <div className="flex flex-col lg:flex-row items-center gap-8">
+                        <div className="w-full lg:w-1/2">
+                            <p className="text-gray-700 mb-4 text-lg">Click the buttons to see how risky each investment is!</p>
+                            <div className="flex space-x-4">
+                                <button onClick={() => setActiveRisk('bonds')} className={`px-5 py-2 text-lg font-bold rounded-lg border-4 border-black transition-all duration-200 ${activeRisk === 'bonds' ? 'bg-green-300 shadow-[4px_4px_0_0_#000]' : 'bg-gray-200'}`}>Bonds 📜</button>
+                                <button onClick={() => setActiveRisk('mutualFunds')} className={`px-5 py-2 text-lg font-bold rounded-lg border-4 border-black transition-all duration-200 ${activeRisk === 'mutualFunds' ? 'bg-yellow-300 shadow-[4px_4px_0_0_#000]' : 'bg-gray-200'}`}>Mutual Funds 🧺</button>
+                                <button onClick={() => setActiveRisk('stocks')} className={`px-5 py-2 text-lg font-bold rounded-lg border-4 border-black transition-all duration-200 ${activeRisk === 'stocks' ? 'bg-red-300 shadow-[4px_4px_0_0_#000]' : 'bg-gray-200'}`}>Stocks 🏢</button>
+                            </div>
+                        </div>
+                        <div className="w-full lg:w-1/2">
+                            <div className="w-full h-8 bg-gray-200 rounded-full border-4 border-black">
+                                <div className={`h-full rounded-full transition-all duration-500 ease-out ${riskLevels[activeRisk].color}`} style={{ width: `${riskLevels[activeRisk].level}%` }}></div>
+                            </div>
+                            <div className="text-center mt-2"><span className="font-bold text-xl text-black">{riskLevels[activeRisk].label} Risk</span></div>
                         </div>
                     </div>
-                ))}
-                <button onClick={() => setShowQuizResult(true)} className="mt-6 w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors duration-300">Submit Answers</button>
-                {showQuizResult && (
-                    <div className="mt-6 text-center p-4 bg-white/10 rounded-lg">
-                        <h3 className="text-xl font-bold text-white">Your Score: {calculateScore()} out of {quizQuestions.length}</h3>
-                        <p className="text-gray-300 mt-2">{calculateScore() === quizQuestions.length ? "Excellent! You're an investing whiz! 🏆" : "Great start! Review the sections above to master the concepts."}</p>
+                </CartoonCard>
+
+                <h2 className="text-3xl font-bold text-black mb-6 text-center">Secret Investor Words 🤫</h2>
+                <CartoonCard className="p-8 mb-12">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                        <div className="relative group">
+                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Wealth</p>
+                            <div className="absolute bottom-full mb-2 w-48 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">All the cool stuff and money you own!</div>
+                        </div>
+                         <div className="relative group">
+                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Diversification</p>
+                            <div className="absolute bottom-full mb-2 w-56 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">Don't put all your eggs in one basket! Spread your money around.</div>
+                        </div>
+                         <div className="relative group">
+                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Interest</p>
+                            <div className="absolute bottom-full mb-2 w-48 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">Free money you get for letting someone borrow yours!</div>
+                        </div>
+                         <div className="relative group">
+                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Long-Term</p>
+                            <div className="absolute bottom-full mb-2 w-48 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">Planting a money tree and waiting a long, long time for it to grow!</div>
+                        </div>
                     </div>
-                )}
-            </Card>
-        </section>
+                </CartoonCard>
+
+                <h2 className="text-3xl font-bold text-black mb-6 text-center">Pop Quiz! 🧠</h2>
+                <CartoonCard className="p-8">
+                    {quizQuestions.map((q, index) => (
+                        <div key={q.id} className={`py-4 ${index < quizQuestions.length - 1 ? 'border-b-4 border-dashed border-gray-200' : ''}`}>
+                            <p className="font-bold text-xl text-black mb-3">{q.id}. {q.question}</p>
+                            <div className="space-y-2">
+                                {q.options.map(option => (
+                                    <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-yellow-100">
+                                        <input type="radio" name={`question-${q.id}`} value={option} onChange={() => handleQuizChange(q.id, option)} className="form-radio h-6 w-6 text-blue-500 border-4 border-black" />
+                                        <span className="text-lg text-gray-800">{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    <button onClick={() => setShowQuizResult(true)} className="mt-6 w-full bg-blue-500 text-white font-bold text-2xl py-3 rounded-lg border-4 border-black hover:bg-blue-600 transition-colors duration-300 shadow-[4px_4px_0_0_#000] active:shadow-none active:transform active:translate-y-1 active:translate-x-1">Check My Answers!</button>
+                    {showQuizResult && (
+                        <div className="mt-6 text-center p-4 bg-yellow-200 border-4 border-black rounded-lg">
+                            <h3 className="text-2xl font-bold text-black">Your Score: {calculateScore()} out of {quizQuestions.length}</h3>
+                            <p className="text-2xl mt-2">{calculateScore() === quizQuestions.length ? "🏆 WOW! You're an investing genius! 🏆" : "👍 Nice try! You're on your way! 👍"}</p>
+                        </div>
+                    )}
+                </CartoonCard>
+            </section>
+        </div>
     );
 };
 
@@ -456,16 +537,25 @@ const Learn = () => {
 export default function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
 
+    const learnTabStyles = `
+        .font-sans {
+            font-family: 'Comic Neue', cursive;
+        }
+        .details-icon.rotated {
+            transform: rotate(180deg);
+        }
+    `;
+
     return (
-        <div className="bg-gray-900 min-h-screen">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/30"></div>
+        <div className={activeTab === 'learn' ? 'bg-yellow-50' : 'bg-gray-900 min-h-screen'}>
+            {activeTab === 'learn' ? <style>{learnTabStyles}</style> : <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/30"></div>}
             <div className="relative">
                 <Header activeTab={activeTab} setActiveTab={setActiveTab} />
                 <main className="container mx-auto p-4 sm:p-6 lg:p-8">
                     {activeTab === 'dashboard' && <Dashboard />}
                     {activeTab === 'learn' && <Learn />}
                 </main>
-                <Footer />
+                {activeTab !== 'learn' && <Footer />}
             </div>
         </div>
     );
