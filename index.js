@@ -125,13 +125,6 @@ const Card = ({ children, className = '' }) => (
     </div>
 );
 
-const CartoonCard = ({ children, className = '' }) => (
-    <div className={`bg-white border-4 border-black rounded-2xl shadow-[8px_8px_0_0_#000] transition-transform hover:scale-[1.02] ${className}`}>
-        {children}
-    </div>
-);
-
-
 // --- Main Components ---
 
 const Header = ({ activeTab, setActiveTab }) => (
@@ -436,9 +429,9 @@ const Learn = () => {
     const [showQuizResult, setShowQuizResult] = useState(false);
 
     const riskLevels = {
-        bonds: { level: 15, color: 'bg-green-400', label: 'Very Low' },
-        mutualFunds: { level: 50, color: 'bg-yellow-400', label: 'Medium' },
-        stocks: { level: 85, color: 'bg-red-400', label: 'High' },
+        bonds: { level: 15, color: 'bg-green-500', label: 'Very Low' },
+        mutualFunds: { level: 50, color: 'bg-yellow-500', label: 'Medium' },
+        stocks: { level: 85, color: 'bg-red-500', label: 'High' },
     };
 
     const quizQuestions = [
@@ -454,81 +447,80 @@ const Learn = () => {
     const calculateScore = () => quizQuestions.reduce((score, q) => score + (quizAnswers[q.id] === q.answer ? 1 : 0), 0);
 
     return (
-        <div className="font-sans" style={{ fontFamily: "'Comic Neue', cursive" }}>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');`}</style>
-            <section id="learn-section">
-                <div className="text-center mb-12">
-                    <h1 className="text-5xl font-bold text-black tracking-tight">Investing for Beginners! 🚀</h1>
-                    <p className="text-lg text-gray-600 mt-4 max-w-3xl mx-auto">Welcome, Future Investor! Let's learn how to make your money grow in a fun way!</p>
+        <section id="learn-section">
+            <div className="text-center mb-12">
+                <h1 className="text-4xl font-bold text-white/90 tracking-tight">Investing for Beginners 🚀</h1>
+                <p className="text-lg text-gray-400 mt-4 max-w-3xl mx-auto">Welcome to the Learning Hub! We've made these concepts simple and interactive to start your journey with confidence.</p>
+            </div>
+
+            <h2 className="text-3xl font-semibold text-white/90 mb-6 tracking-tight">Interactive Risk Meter</h2>
+            <Card className="p-8 mb-12">
+                 <div className="flex flex-col lg:flex-row items-center gap-8">
+                    <div className="w-full lg:w-1/2">
+                        <p className="text-gray-300 mb-4">Click an investment type to see its risk level. Understanding risk is key to smart investing.</p>
+                        <div className="flex space-x-4">
+                            <button onClick={() => setActiveRisk('bonds')} className={`px-4 py-2 rounded-full transition-all duration-300 ${activeRisk === 'bonds' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-300'}`}>Bonds</button>
+                            <button onClick={() => setActiveRisk('mutualFunds')} className={`px-4 py-2 rounded-full transition-all duration-300 ${activeRisk === 'mutualFunds' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-300'}`}>Mutual Funds</button>
+                            <button onClick={() => setActiveRisk('stocks')} className={`px-4 py-2 rounded-full transition-all duration-300 ${activeRisk === 'stocks' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-300'}`}>Stocks</button>
+                        </div>
+                    </div>
+                    <div className="w-full lg:w-1/2">
+                        <div className="w-full h-8 bg-white/10 rounded-full">
+                            <div className={`h-full rounded-full transition-all duration-500 ease-out ${riskLevels[activeRisk].color}`} style={{ width: `${riskLevels[activeRisk].level}%` }}></div>
+                        </div>
+                        <div className="text-center mt-2">
+                            <span className="font-semibold text-lg" style={{ color: riskLevels[activeRisk].color.replace('bg-', '').replace('-500', '-400') }}>{riskLevels[activeRisk].label} Risk</span>
+                        </div>
+                    </div>
                 </div>
+            </Card>
 
-                <h2 className="text-3xl font-bold text-black mb-6 text-center">What's the Risk? 🤔</h2>
-                <CartoonCard className="p-8 mb-12">
-                     <div className="flex flex-col lg:flex-row items-center gap-8">
-                        <div className="w-full lg:w-1/2">
-                            <p className="text-gray-700 mb-4 text-lg">Click the buttons to see how risky each investment is!</p>
-                            <div className="flex space-x-4">
-                                <button onClick={() => setActiveRisk('bonds')} className={`px-5 py-2 text-lg font-bold rounded-lg border-4 border-black transition-all duration-200 ${activeRisk === 'bonds' ? 'bg-green-300 shadow-[4px_4px_0_0_#000]' : 'bg-gray-200'}`}>Bonds 📜</button>
-                                <button onClick={() => setActiveRisk('mutualFunds')} className={`px-5 py-2 text-lg font-bold rounded-lg border-4 border-black transition-all duration-200 ${activeRisk === 'mutualFunds' ? 'bg-yellow-300 shadow-[4px_4px_0_0_#000]' : 'bg-gray-200'}`}>Mutual Funds 🧺</button>
-                                <button onClick={() => setActiveRisk('stocks')} className={`px-5 py-2 text-lg font-bold rounded-lg border-4 border-black transition-all duration-200 ${activeRisk === 'stocks' ? 'bg-red-300 shadow-[4px_4px_0_0_#000]' : 'bg-gray-200'}`}>Stocks 🏢</button>
-                            </div>
-                        </div>
-                        <div className="w-full lg:w-1/2">
-                            <div className="w-full h-8 bg-gray-200 rounded-full border-4 border-black">
-                                <div className={`h-full rounded-full transition-all duration-500 ease-out ${riskLevels[activeRisk].color}`} style={{ width: `${riskLevels[activeRisk].level}%` }}></div>
-                            </div>
-                            <div className="text-center mt-2"><span className="font-bold text-xl text-black">{riskLevels[activeRisk].label} Risk</span></div>
+            <h2 className="text-3xl font-semibold text-white/90 mb-6 tracking-tight">Key Terms Glossary</h2>
+            <Card className="p-8 mb-12">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                    <div className="relative group">
+                        <p className="text-blue-400 font-semibold cursor-pointer">Wealth</p>
+                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">The total value of money and assets you own.</div>
+                    </div>
+                    <div className="relative group">
+                        <p className="text-blue-400 font-semibold cursor-pointer">Diversification</p>
+                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Spreading your money across different investments to reduce risk.</div>
+                    </div>
+                    <div className="relative group">
+                        <p className="text-blue-400 font-semibold cursor-pointer">Interest</p>
+                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">The extra money you earn for lending your money (like with bonds).</div>
+                    </div>
+                    <div className="relative group">
+                        <p className="text-blue-400 font-semibold cursor-pointer">Long-Term</p>
+                        <div className="absolute bottom-full mb-2 w-48 p-2 bg-gray-900 border border-white/10 rounded-lg text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">Investing for many years (5+) to allow your money to grow significantly.</div>
+                    </div>
+                </div>
+            </Card>
+
+            <h2 className="text-3xl font-semibold text-white/90 mb-6 tracking-tight">Check Your Knowledge</h2>
+            <Card className="p-8">
+                {quizQuestions.map((q, index) => (
+                    <div key={q.id} className={`py-4 ${index < quizQuestions.length - 1 ? 'border-b border-white/10' : ''}`}>
+                        <p className="font-semibold text-white/90 mb-3">{q.id}. {q.question}</p>
+                        <div className="space-y-2">
+                            {q.options.map(option => (
+                                <label key={option} className="flex items-center space-x-3 cursor-pointer">
+                                    <input type="radio" name={`question-${q.id}`} value={option} onChange={() => handleQuizChange(q.id, option)} className="form-radio h-4 w-4 text-blue-500 bg-gray-700 border-gray-600" />
+                                    <span className="text-gray-300">{option}</span>
+                                </label>
+                            ))}
                         </div>
                     </div>
-                </CartoonCard>
-
-                <h2 className="text-3xl font-bold text-black mb-6 text-center">Secret Investor Words 🤫</h2>
-                <CartoonCard className="p-8 mb-12">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                        <div className="relative group">
-                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Wealth</p>
-                            <div className="absolute bottom-full mb-2 w-48 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">All the cool stuff and money you own!</div>
-                        </div>
-                         <div className="relative group">
-                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Diversification</p>
-                            <div className="absolute bottom-full mb-2 w-56 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">Don't put all your eggs in one basket! Spread your money around.</div>
-                        </div>
-                         <div className="relative group">
-                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Interest</p>
-                            <div className="absolute bottom-full mb-2 w-48 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">Free money you get for letting someone borrow yours!</div>
-                        </div>
-                         <div className="relative group">
-                            <p className="text-xl font-bold text-blue-600 cursor-pointer transform hover:scale-110 transition-transform">Long-Term</p>
-                            <div className="absolute bottom-full mb-2 w-48 p-3 bg-yellow-200 border-4 border-black rounded-lg text-sm text-black opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[4px_4px_0_0_#000]">Planting a money tree and waiting a long, long time for it to grow!</div>
-                        </div>
+                ))}
+                <button onClick={() => setShowQuizResult(true)} className="mt-6 w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-colors duration-300">Submit Answers</button>
+                {showQuizResult && (
+                    <div className="mt-6 text-center p-4 bg-white/10 rounded-lg">
+                        <h3 className="text-xl font-bold text-white">Your Score: {calculateScore()} out of {quizQuestions.length}</h3>
+                        <p className="text-gray-300 mt-2">{calculateScore() === quizQuestions.length ? "Excellent! You're an investing whiz! 🏆" : "Great start! Review the sections above to master the concepts."}</p>
                     </div>
-                </CartoonCard>
-
-                <h2 className="text-3xl font-bold text-black mb-6 text-center">Pop Quiz! 🧠</h2>
-                <CartoonCard className="p-8">
-                    {quizQuestions.map((q, index) => (
-                        <div key={q.id} className={`py-4 ${index < quizQuestions.length - 1 ? 'border-b-4 border-dashed border-gray-200' : ''}`}>
-                            <p className="font-bold text-xl text-black mb-3">{q.id}. {q.question}</p>
-                            <div className="space-y-2">
-                                {q.options.map(option => (
-                                    <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded-lg hover:bg-yellow-100">
-                                        <input type="radio" name={`question-${q.id}`} value={option} onChange={() => handleQuizChange(q.id, option)} className="form-radio h-6 w-6 text-blue-500 border-4 border-black" />
-                                        <span className="text-lg text-gray-800">{option}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                    <button onClick={() => setShowQuizResult(true)} className="mt-6 w-full bg-blue-500 text-white font-bold text-2xl py-3 rounded-lg border-4 border-black hover:bg-blue-600 transition-colors duration-300 shadow-[4px_4px_0_0_#000] active:shadow-none active:transform active:translate-y-1 active:translate-x-1">Check My Answers!</button>
-                    {showQuizResult && (
-                        <div className="mt-6 text-center p-4 bg-yellow-200 border-4 border-black rounded-lg">
-                            <h3 className="text-2xl font-bold text-black">Your Score: {calculateScore()} out of {quizQuestions.length}</h3>
-                            <p className="text-2xl mt-2">{calculateScore() === quizQuestions.length ? "🏆 WOW! You're an investing genius! 🏆" : "👍 Nice try! You're on your way! 👍"}</p>
-                        </div>
-                    )}
-                </CartoonCard>
-            </section>
-        </div>
+                )}
+            </Card>
+        </section>
     );
 };
 
@@ -537,25 +529,16 @@ const Learn = () => {
 export default function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
 
-    const learnTabStyles = `
-        .font-sans {
-            font-family: 'Comic Neue', cursive;
-        }
-        .details-icon.rotated {
-            transform: rotate(180deg);
-        }
-    `;
-
     return (
-        <div className={activeTab === 'learn' ? 'bg-yellow-50' : 'bg-gray-900 min-h-screen'}>
-            {activeTab === 'learn' ? <style>{learnTabStyles}</style> : <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/30"></div>}
+        <div className="bg-gray-900 min-h-screen text-white">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900 to-blue-900/30"></div>
             <div className="relative">
                 <Header activeTab={activeTab} setActiveTab={setActiveTab} />
                 <main className="container mx-auto p-4 sm:p-6 lg:p-8">
                     {activeTab === 'dashboard' && <Dashboard />}
                     {activeTab === 'learn' && <Learn />}
                 </main>
-                {activeTab !== 'learn' && <Footer />}
+                <Footer />
             </div>
         </div>
     );
