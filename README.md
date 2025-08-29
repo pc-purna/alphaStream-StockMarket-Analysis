@@ -7,6 +7,6 @@ Set up a new React project using
 
 Replace the contents of **src/App.js** with the code above.
 
-Make sure you have Tailwind CSS and Font Awesome installed and configured for your project.
+Make sure you have **Tailwind CSS** and **Font Awesome** installed and configured for your project.
 
-Run npm start in your project directory to see the website live.
+Run **npm start** in your project directory to see the website live.
